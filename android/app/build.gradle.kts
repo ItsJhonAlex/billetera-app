@@ -28,11 +28,11 @@ android {
         create("dev") {
             dimension = "env"
             applicationIdSuffix = ".dev"
-            resValue("string", "app_name", "Billetera Dev")
+            manifestPlaceholders["appName"] = "Billetera Dev"
         }
         create("prod") {
             dimension = "env"
-            resValue("string", "app_name", "Billetera")
+            manifestPlaceholders["appName"] = "Billetera"
         }
     }
 
