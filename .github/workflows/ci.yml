@@ -1,0 +1,31 @@
+name: CI
+
+# Verifica análisis estático y tests en cada push y pull request.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  analyze-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.2
+          channel: stable
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Generar código (Drift)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analizar
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
