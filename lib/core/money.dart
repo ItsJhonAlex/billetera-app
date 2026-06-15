@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import 'expression.dart';
+
 /// Utilidades para manejar dinero.
 ///
 /// El dinero se guarda y se opera SIEMPRE como un entero en la unidad mínima
@@ -34,6 +36,15 @@ class Money {
     final normalized = input.trim().replaceAll(',', '.');
     if (normalized.isEmpty) return null;
     final value = double.tryParse(normalized);
+    if (value == null) return null;
+    return fromUnits(value);
+  }
+
+  /// Evalúa una expresión aritmética (ej. "200*4+100" o "(100+20)*2") y la
+  /// convierte a centavos, redondeando al centavo más cercano. Devuelve `null`
+  /// si la expresión es inválida. Acepta también un número suelto.
+  static int? parseExpression(String input) {
+    final value = evaluateExpression(input);
     if (value == null) return null;
     return fromUnits(value);
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database/app_database.dart';
 import '../providers/providers.dart';
 import '../widgets/transaction_tile.dart';
+import 'add_transaction_screen.dart';
 
 /// Historial completo de movimientos.
 class TransactionsScreen extends ConsumerWidget {
@@ -54,6 +55,11 @@ class TransactionsScreen extends ConsumerWidget {
         child: Wrap(
           children: [
             ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Editar movimiento'),
+              onTap: () => Navigator.pop(context, 'edit'),
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
               title: const Text('Eliminar movimiento'),
               onTap: () => Navigator.pop(context, 'delete'),
@@ -67,7 +73,14 @@ class TransactionsScreen extends ConsumerWidget {
         ),
       ),
     );
-    if (action == 'delete') {
+    if (!context.mounted) return;
+    if (action == 'edit') {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AddTransactionScreen(existing: tx),
+        ),
+      );
+    } else if (action == 'delete') {
       await ref.read(walletRepositoryProvider).deleteTransaction(tx.id);
     }
   }

@@ -89,6 +89,63 @@ void main() {
     expect(saldoB, 2000);
   });
 
+  test('editar un movimiento cambia el importe y recalcula el saldo', () async {
+    final accId = await repo.createAccount(
+      name: 'Efectivo',
+      type: AccountType.efectivo,
+      initialBalanceMinor: 10000,
+    );
+    final cat = (await db.categoriesDao.getAll())
+        .firstWhere((c) => c.kind == CategoryKind.gasto);
+
+    final txId = await repo.createTransaction(
+      draft: TransactionDraft(
+        type: TransactionType.gasto,
+        amountMinor: 2500,
+        accountId: accId,
+        categoryId: cat.id,
+      ),
+      date: DateTime(2026, 1, 1),
+    );
+
+    final original =
+        (await db.transactionsDao.watchAll().first).single;
+
+    // Editar: subir el gasto de 2500 a 4000.
+    await repo.updateTransaction(
+      id: txId,
+      createdAt: original.createdAt,
+      draft: TransactionDraft(
+        type: TransactionType.gasto,
+        amountMinor: 4000,
+        accountId: accId,
+        categoryId: cat.id,
+      ),
+      date: DateTime(2026, 1, 1),
+      note: 'corregido',
+    );
+
+    final txns = await db.transactionsDao.watchAll().first;
+    expect(txns.length, 1, reason: 'no debe duplicar el movimiento');
+    final updated = txns.single;
+    expect(updated.id, txId);
+    expect(updated.amountMinor, 4000);
+    expect(updated.note, 'corregido');
+    expect(updated.createdAt, original.createdAt);
+
+    final balance = computeAccountBalance(
+      accountId: accId,
+      initialBalanceMinor: 10000,
+      entries: txns.map((t) => BalanceEntry(
+            type: t.type,
+            amountMinor: t.amountMinor,
+            accountId: t.accountId,
+            transferAccountId: t.transferAccountId,
+          )),
+    );
+    expect(balance, 6000);
+  });
+
   test('rechaza un movimiento inválido', () async {
     final a = await repo.createAccount(
         name: 'Caja', type: AccountType.efectivo);

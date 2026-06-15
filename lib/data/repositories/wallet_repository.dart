@@ -115,6 +115,32 @@ class WalletRepository {
     return id;
   }
 
+  /// Edita un movimiento existente. Conserva su [id] y [createdAt] y refresca
+  /// `updatedAt`. Lanza [ArgumentError] si el borrador no es válido.
+  Future<void> updateTransaction({
+    required String id,
+    required TransactionDraft draft,
+    required DateTime date,
+    required DateTime createdAt,
+    String? note,
+  }) async {
+    final error = validateTransaction(draft);
+    if (error != null) throw ArgumentError(error);
+
+    await _db.transactionsDao.upsert(TransactionsCompanion.insert(
+      id: id,
+      accountId: draft.accountId,
+      categoryId: Value(draft.categoryId),
+      type: draft.type,
+      amountMinor: draft.amountMinor,
+      note: Value(note),
+      date: date,
+      transferAccountId: Value(draft.transferAccountId),
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
+    ));
+  }
+
   Future<void> deleteTransaction(String id) =>
       _db.transactionsDao.deleteById(id);
 }

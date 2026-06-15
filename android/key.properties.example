@@ -1,0 +1,9 @@
+# Plantilla para la firma de release LOCAL.
+# Copia este archivo a `android/key.properties` y rellena tus valores.
+# El archivo real (key.properties) y el .jks están en .gitignore: NO los subas.
+#
+# storeFile: ruta al keystore. Relativa a android/app/ o absoluta.
+storeFile=../../billetera-release.jks
+storePassword=TU_STORE_PASSWORD
+keyAlias=billetera
+keyPassword=TU_KEY_PASSWORD

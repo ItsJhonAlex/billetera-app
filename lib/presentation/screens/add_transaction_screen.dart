@@ -4,13 +4,18 @@ import 'package:intl/intl.dart';
 
 import '../../core/material_icon.dart';
 import '../../core/money.dart';
+import '../../data/database/app_database.dart';
 import '../../domain/enums.dart';
 import '../../domain/transaction_validation.dart';
 import '../providers/providers.dart';
+import '../widgets/amount_field.dart';
 
-/// Formulario para registrar un gasto, ingreso o transferencia.
+/// Formulario para registrar o editar un gasto, ingreso o transferencia.
+/// Si [existing] no es nulo, edita ese movimiento en lugar de crear uno nuevo.
 class AddTransactionScreen extends ConsumerStatefulWidget {
-  const AddTransactionScreen({super.key});
+  const AddTransactionScreen({super.key, this.existing});
+
+  final TransactionRow? existing;
 
   @override
   ConsumerState<AddTransactionScreen> createState() =>
@@ -29,6 +34,22 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   DateTime _date = DateTime.now();
 
   bool get _isTransfer => _type == TransactionType.transferencia;
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final tx = widget.existing;
+    if (tx != null) {
+      _type = tx.type;
+      _amount.text = Money.toUnits(tx.amountMinor).toString();
+      _note.text = tx.note ?? '';
+      _accountId = tx.accountId;
+      _categoryId = tx.categoryId;
+      _transferToId = tx.transferAccountId;
+      _date = tx.date;
+    }
+  }
 
   @override
   void dispose() {
@@ -49,7 +70,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    final amountMinor = Money.parse(_amount.text);
+    final amountMinor = Money.parseExpression(_amount.text);
     if (amountMinor == null) return;
 
     final draft = TransactionDraft(
@@ -60,12 +81,21 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       transferAccountId: _isTransfer ? _transferToId : null,
     );
 
+    final note = _note.text.trim().isEmpty ? null : _note.text.trim();
+    final repo = ref.read(walletRepositoryProvider);
+
     try {
-      await ref.read(walletRepositoryProvider).createTransaction(
-            draft: draft,
-            date: _date,
-            note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-          );
+      if (_isEdit) {
+        await repo.updateTransaction(
+          id: widget.existing!.id,
+          createdAt: widget.existing!.createdAt,
+          draft: draft,
+          date: _date,
+          note: note,
+        );
+      } else {
+        await repo.createTransaction(draft: draft, date: _date, note: note);
+      }
       if (mounted) Navigator.of(context).pop();
     } on ArgumentError catch (e) {
       if (mounted) {
@@ -88,7 +118,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         categories.where((c) => c.kind == kind).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuevo movimiento')),
+      appBar: AppBar(
+          title: Text(_isEdit ? 'Editar movimiento' : 'Nuevo movimiento')),
       body: accounts.isEmpty
           ? const _NeedsAccount()
           : Form(
@@ -121,21 +152,11 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     }),
                   ),
                   const SizedBox(height: 20),
-                  TextFormField(
+                  AmountField(
                     controller: _amount,
+                    label: 'Importe',
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Importe',
-                      prefixText: r'$ ',
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    validator: (v) {
-                      final m = Money.parse(v ?? '');
-                      if (m == null) return 'Importe no válido';
-                      if (m <= 0) return 'Debe ser mayor que cero';
-                      return null;
-                    },
+                    requirePositive: true,
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -212,7 +233,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                   FilledButton.icon(
                     onPressed: _save,
                     icon: const Icon(Icons.check),
-                    label: const Text('Guardar'),
+                    label: Text(_isEdit ? 'Guardar cambios' : 'Guardar'),
                   ),
                 ],
               ),

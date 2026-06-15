@@ -1,7 +1,18 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Firma de release local: lee android/key.properties si existe. Este archivo y
+// el .jks NO se versionan (ver .gitignore). En CI se usan variables de entorno.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
 }
 
 android {
@@ -36,20 +47,27 @@ android {
         }
     }
 
-    // Hay keystore de firma si la variable existe y NO está vacía (en CI se pasa
-    // como cadena vacía cuando no se configuran los secrets).
-    val keystorePath = System.getenv("BILLETERA_KEYSTORE")
+    // Resuelve el keystore: primero variables de entorno (CI), luego
+    // key.properties (local). Si ninguno existe, se firma con clave debug.
+    // En CI la variable se pasa como cadena vacía cuando no hay secrets.
+    val envKeystore = System.getenv("BILLETERA_KEYSTORE")
+    val keystorePath = if (!envKeystore.isNullOrBlank()) {
+        envKeystore
+    } else {
+        keystoreProperties.getProperty("storeFile")
+    }
     val hasReleaseKeystore = !keystorePath.isNullOrBlank()
 
     signingConfigs {
         create("release") {
-            // Credenciales de firma desde variables de entorno (GitHub Actions)
-            // o un keystore local. Si no existen, se usa la firma debug (abajo).
             if (hasReleaseKeystore) {
                 storeFile = file(keystorePath!!)
                 storePassword = System.getenv("BILLETERA_STORE_PASSWORD")
+                    ?: keystoreProperties.getProperty("storePassword")
                 keyAlias = System.getenv("BILLETERA_KEY_ALIAS")
+                    ?: keystoreProperties.getProperty("keyAlias")
                 keyPassword = System.getenv("BILLETERA_KEY_PASSWORD")
+                    ?: keystoreProperties.getProperty("keyPassword")
             }
         }
     }

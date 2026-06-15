@@ -6,6 +6,7 @@ import '../../data/database/app_database.dart';
 import '../../domain/enums.dart';
 import '../labels.dart';
 import '../providers/providers.dart';
+import '../widgets/amount_field.dart';
 
 /// Crea o edita una cuenta. Si [account] es nulo, crea una nueva.
 class AccountFormScreen extends ConsumerStatefulWidget {
@@ -46,7 +47,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final repo = ref.read(walletRepositoryProvider);
-    final initialMinor = Money.parse(_balance.text) ?? 0;
+    final initialMinor = Money.parseExpression(_balance.text) ?? 0;
 
     if (_isEdit) {
       await repo.updateAccount(widget.account!.copyWith(
@@ -100,19 +101,11 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            AmountField(
               controller: _balance,
-              decoration: const InputDecoration(
-                labelText: 'Saldo inicial',
-                prefixText: r'$ ',
-                helperText: 'El saldo con el que arranca la cuenta',
-              ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return null; // 0 por defecto
-                return Money.parse(v) == null ? 'Importe no válido' : null;
-              },
+              label: 'Saldo inicial',
+              helperText: 'El saldo con el que arranca la cuenta',
+              allowEmpty: true,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(

@@ -42,6 +42,8 @@ dependencies:
   flutter_riverpod: ^3.3.2
   uuid: ^4.5.3
   intl: ^0.20.2
+  url_launcher: ^6.3.1
+  flutter_native_splash: ^2.4.6
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +58,17 @@ dev_dependencies:
   drift_dev: ^2.34.0
   build_runner: ^2.15.0
   flutter_launcher_icons: ^0.14.4
+
+# Pantalla de arranque (splash) con el logo sobre el fondo cuero del tema.
+# Regenerar con: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#1C1410"
+  image: assets/icon/logo.png
+  android_12:
+    color: "#1C1410"
+    image: assets/icon/logo.png
+  android: true
+  ios: true
 
 # Configuración del ícono de la app (genera todos los tamaños desde un PNG).
 # Regenerar con: dart run flutter_launcher_icons
@@ -78,6 +91,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/icon/logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
