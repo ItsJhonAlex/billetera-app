@@ -30,6 +30,10 @@ final transactionsProvider = StreamProvider<List<TransactionRow>>((ref) {
   return ref.watch(walletRepositoryProvider).watchTransactions();
 });
 
+final recurringRulesProvider = StreamProvider<List<RecurringRuleRow>>((ref) {
+  return ref.watch(walletRepositoryProvider).watchRecurringRules();
+});
+
 // ---- Derivados ----
 
 /// Saldo (en centavos) por id de cuenta. Se recalcula cuando cambian las

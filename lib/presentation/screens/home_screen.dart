@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../providers/providers.dart';
 import '../widgets/transaction_tile.dart';
 import 'account_form_screen.dart';
+import 'summary_screen.dart';
 
 /// Pantalla de inicio: saldo total, tarjetas de cuentas y últimos movimientos.
 class HomeScreen extends ConsumerWidget {
@@ -23,7 +24,18 @@ class HomeScreen extends ConsumerWidget {
     final recent = txns.take(8).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Billetera')),
+      appBar: AppBar(
+        title: const Text('Billetera'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            tooltip: 'Resumen',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SummaryScreen()),
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [

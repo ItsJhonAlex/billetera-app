@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/theme.dart';
+import 'data/notifications/notification_service.dart';
 import 'presentation/screens/home_shell.dart';
 
 Future<void> main() async {
@@ -14,6 +15,8 @@ Future<void> main() async {
   // Carga los datos de formato de fecha/número para español; sin esto,
   // DateFormat(..., 'es') y NumberFormat con locale lanzan LocaleDataException.
   await initializeDateFormatting('es');
+  // Notificaciones de pagos recurrentes (no bloquea si falla).
+  await NotificationService.instance.init();
   runApp(const ProviderScope(child: BilleteraApp()));
   // Quita el splash al pintar el primer frame (evita el parpadeo en blanco).
   binding.addPostFrameCallback((_) => FlutterNativeSplash.remove());

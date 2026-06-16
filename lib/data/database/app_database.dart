@@ -10,6 +10,8 @@ part 'app_database.g.dart';
 part 'daos/accounts_dao.dart';
 part 'daos/categories_dao.dart';
 part 'daos/transactions_dao.dart';
+part 'daos/recurring_rules_dao.dart';
+part 'daos/budgets_dao.dart';
 
 const _uuid = Uuid();
 
@@ -19,8 +21,14 @@ const _uuid = Uuid();
 /// añade un bloque en [migration.onUpgrade] que conserva los datos existentes:
 /// así la app se actualiza sin que el usuario pierda información.
 @DriftDatabase(
-  tables: [Accounts, Categories, Transactions],
-  daos: [AccountsDao, CategoriesDao, TransactionsDao],
+  tables: [Accounts, Categories, Transactions, RecurringRules, Budgets],
+  daos: [
+    AccountsDao,
+    CategoriesDao,
+    TransactionsDao,
+    RecurringRulesDao,
+    BudgetsDao,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'billetera'));
@@ -29,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -38,9 +46,15 @@ class AppDatabase extends _$AppDatabase {
           await _seedDefaultCategories();
         },
         onUpgrade: (m, from, to) async {
-          // Migraciones futuras. Ejemplo del patrón a seguir:
-          //   if (from < 2) { await m.createTable(budgets); }
-          //   if (from < 3) { await m.addColumn(accounts, accounts.someNewCol); }
+          // v2: reglas de movimientos recurrentes. Conserva los datos previos.
+          if (from < 2) {
+            await m.createTable(recurringRules);
+          }
+          // v3: presupuestos por categoría + cuentas incluidas en el % .
+          if (from < 3) {
+            await m.addColumn(accounts, accounts.includeInBudget);
+            await m.createTable(budgets);
+          }
           // NUNCA borres datos aquí.
         },
       );

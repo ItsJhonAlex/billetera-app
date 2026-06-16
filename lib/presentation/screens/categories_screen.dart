@@ -5,6 +5,7 @@ import '../../core/material_icon.dart';
 import '../../data/database/app_database.dart';
 import '../../domain/enums.dart';
 import '../providers/providers.dart';
+import '../widgets/confirm_dialog.dart';
 import 'category_form_screen.dart';
 
 /// Gestión de categorías: lista por tipo con acciones de crear/editar/archivar.
@@ -86,26 +87,14 @@ class _CategoryTile extends ConsumerWidget {
   }
 
   Future<void> _confirmArchive(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('¿Borrar "${category.name}"?'),
-        content: const Text(
-            'Los movimientos que ya la usan conservan su importe; solo dejará '
-            'de aparecer al crear nuevos.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Borrar'),
-          ),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: '¿Borrar "${category.name}"?',
+      message: 'Los movimientos que ya la usan conservan su importe; solo '
+          'dejará de aparecer al crear nuevos.',
+      confirmLabel: 'Borrar',
     );
-    if (ok ?? false) {
+    if (ok) {
       await ref.read(walletRepositoryProvider).archiveCategory(category.id);
     }
   }

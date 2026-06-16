@@ -23,6 +23,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   late final TextEditingController _name;
   late final TextEditingController _balance;
   late AccountType _type;
+  late bool _includeInBudget;
 
   bool get _isEdit => widget.account != null;
 
@@ -35,6 +36,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       text: a == null ? '' : Money.toUnits(a.initialBalanceMinor).toString(),
     );
     _type = a?.type ?? AccountType.efectivo;
+    _includeInBudget = a?.includeInBudget ?? true;
   }
 
   @override
@@ -54,12 +56,14 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
         name: _name.text.trim(),
         type: _type,
         initialBalanceMinor: initialMinor,
+        includeInBudget: _includeInBudget,
       ));
     } else {
       await repo.createAccount(
         name: _name.text.trim(),
         type: _type,
         initialBalanceMinor: initialMinor,
+        includeInBudget: _includeInBudget,
       );
     }
     if (mounted) Navigator.of(context).pop();
@@ -107,7 +111,17 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
               helperText: 'El saldo con el que arranca la cuenta',
               allowEmpty: true,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _includeInBudget,
+              onChanged: (v) => setState(() => _includeInBudget = v),
+              title: const Text('Incluir en presupuesto'),
+              subtitle: const Text(
+                  'Cuenta para el % de los presupuestos. Desactívalo en cuentas '
+                  'de ahorro o emergencia.'),
+            ),
+            const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _save,
               icon: const Icon(Icons.check),

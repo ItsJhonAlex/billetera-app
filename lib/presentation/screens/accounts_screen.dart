@@ -5,6 +5,7 @@ import '../../core/money.dart';
 import '../../data/database/app_database.dart';
 import '../labels.dart';
 import '../providers/providers.dart';
+import '../widgets/confirm_dialog.dart';
 import 'account_form_screen.dart';
 
 /// Lista de cuentas con su saldo, y acciones para crear/editar/archivar.
@@ -61,25 +62,15 @@ class AccountsScreen extends ConsumerWidget {
 
   Future<void> _confirmArchive(
       BuildContext context, WidgetRef ref, AccountRow account) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('¿Archivar "${account.name}"?'),
-        content: const Text(
-            'La cuenta se ocultará pero su historial de movimientos se conserva.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Archivar'),
-          ),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: '¿Archivar "${account.name}"?',
+      message:
+          'La cuenta se ocultará pero su historial de movimientos se conserva.',
+      confirmLabel: 'Archivar',
+      destructive: false,
     );
-    if (ok ?? false) {
+    if (ok) {
       await ref.read(walletRepositoryProvider).archiveAccount(account.id);
     }
   }

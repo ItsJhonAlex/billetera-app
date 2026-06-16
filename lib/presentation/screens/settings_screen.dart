@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'budgets_screen.dart';
 import 'categories_screen.dart';
 
 /// Ajustes de la app: gestión de categorías, datos de la app e información
@@ -76,6 +77,15 @@ class SettingsScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const CategoriesScreen()),
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.savings),
+            title: const Text('Presupuestos'),
+            subtitle: const Text('Límite mensual por categoría'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BudgetsScreen()),
+            ),
+          ),
           const ListTile(
             leading: Icon(Icons.payments),
             title: Text('Moneda'),
@@ -83,13 +93,6 @@ class SettingsScreen extends StatelessWidget {
             trailing: Text('Próximamente'),
           ),
           const _SectionHeader('Próximamente'),
-          const ListTile(
-            leading: Icon(Icons.savings),
-            title: Text('Presupuestos por categoría'),
-            subtitle: Text('Fija un límite mensual por categoría'),
-            trailing: Icon(Icons.lock_clock),
-            enabled: false,
-          ),
           const ListTile(
             leading: Icon(Icons.backup_outlined),
             title: Text('Copia de seguridad'),

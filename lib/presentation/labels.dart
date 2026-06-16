@@ -40,3 +40,17 @@ extension TransactionTypeDisplay on TransactionType {
         TransactionType.transferencia => Icons.swap_horiz,
       };
 }
+
+extension RecurringModeDisplay on RecurringMode {
+  String get label => switch (this) {
+        RecurringMode.automatica => 'Automática',
+        RecurringMode.manual => 'Manual',
+      };
+}
+
+extension RecurringScheduleDisplay on RecurringSchedule {
+  String get label => switch (this) {
+        RecurringSchedule.diaDelMes => 'Día del mes',
+        RecurringSchedule.cadaNDias => 'Cada N días',
+      };
+}

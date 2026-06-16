@@ -1,28 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/notifications/notification_service.dart';
+import '../providers/budget_providers.dart';
+import '../providers/providers.dart';
 import 'accounts_screen.dart';
 import 'add_transaction_screen.dart';
 import 'home_screen.dart';
+import 'recurring_screen.dart';
 import 'settings_screen.dart';
 import 'transactions_screen.dart';
 
 /// Contenedor principal con barra de navegación inferior.
-class HomeShell extends StatefulWidget {
+///
+/// Ejecuta la recuperación de movimientos recurrentes al iniciar y cada vez que
+/// la app vuelve del segundo plano.
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell>
+    with WidgetsBindingObserver {
   int _index = 0;
 
   static const _tabs = [
     HomeScreen(),
     TransactionsScreen(),
     AccountsScreen(),
+    RecurringScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _runCatchUp();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _runCatchUp();
+  }
+
+  /// Registra los cobros automáticos vencidos desde la última vez.
+  Future<void> _runCatchUp() async {
+    await ref.read(walletRepositoryProvider).runRecurringCatchUp(DateTime.now());
+  }
 
   void _openAddTransaction() {
     Navigator.of(context).push(
@@ -32,7 +65,19 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    // El botón "+" solo tiene sentido en Inicio y Movimientos.
+    // Reprograma las notificaciones cada vez que cambian las reglas recurrentes
+    // (crear, editar, pagar, pausar o borrar).
+    ref.listen(recurringRulesProvider, (_, next) {
+      final rules = next.asData?.value;
+      if (rules != null) NotificationService.instance.syncAll(rules);
+    });
+
+    // Evalúa las alertas de presupuesto cuando cambian los movimientos.
+    ref.listen(transactionsProvider, (_, next) {
+      if (next.asData?.value != null) evaluateBudgetAlerts(ref);
+    });
+
+    // El botón "+" de movimientos solo tiene sentido en Inicio y Movimientos.
     final showFab = _index == 0 || _index == 1;
 
     return Scaffold(
@@ -46,6 +91,7 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet),
@@ -58,6 +104,10 @@ class _HomeShellState extends State<HomeShell> {
           BottomNavigationBarItem(
             icon: Icon(Icons.credit_card),
             label: 'Cuentas',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_repeat),
+            label: 'Recurrentes',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
