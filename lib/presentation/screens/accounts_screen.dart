@@ -16,6 +16,7 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accounts = ref.watch(accountsProvider).asData?.value ?? const [];
     final balances = ref.watch(balancesProvider);
+    final currenciesByCode = ref.watch(currenciesByCodeProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Cuentas')),
@@ -36,9 +37,11 @@ class AccountsScreen extends ConsumerWidget {
                   child: ListTile(
                     leading: CircleAvatar(child: Icon(a.type.icon)),
                     title: Text(a.name),
-                    subtitle: Text(a.type.label),
+                    subtitle: Text('${a.type.label} · ${a.currency}'),
                     trailing: Text(
-                      Money.format(balance),
+                      Money.format(balance,
+                          symbol:
+                              currenciesByCode[a.currency]?.symbol ?? a.currency),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,

@@ -112,6 +112,8 @@ class WalletRepository {
       note: Value(note),
       date: date,
       transferAccountId: Value(draft.transferAccountId),
+      transferAmountMinor: Value(draft.transferAmountMinor),
+      feeMinor: Value(draft.feeMinor),
       createdAt: now,
       updatedAt: now,
     ));
@@ -139,6 +141,8 @@ class WalletRepository {
       note: Value(note),
       date: date,
       transferAccountId: Value(draft.transferAccountId),
+      transferAmountMinor: Value(draft.transferAmountMinor),
+      feeMinor: Value(draft.feeMinor),
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     ));
@@ -146,6 +150,60 @@ class WalletRepository {
 
   Future<void> deleteTransaction(String id) =>
       _db.transactionsDao.deleteById(id);
+
+  // ---- Monedas y tasas ----
+
+  Stream<List<CurrencyRow>> watchCurrencies() => _db.currenciesDao.watchAll();
+
+  Future<List<CurrencyRow>> getCurrencies() => _db.currenciesDao.getAll();
+
+  Future<CurrencyRow?> getDefaultCurrency() => _db.currenciesDao.getDefault();
+
+  Future<void> saveCurrency({
+    required String code,
+    required String name,
+    required String symbol,
+    int decimalDigits = 2,
+  }) {
+    final now = DateTime.now();
+    return _db.currenciesDao.upsert(CurrenciesCompanion.insert(
+      code: code,
+      name: name,
+      symbol: symbol,
+      decimalDigits: Value(decimalDigits),
+      createdAt: now,
+      updatedAt: now,
+    ));
+  }
+
+  Future<void> setDefaultCurrency(String code) =>
+      _db.currenciesDao.setDefault(code, DateTime.now());
+
+  Future<void> deleteCurrency(String code) =>
+      _db.currenciesDao.deleteByCode(code);
+
+  Stream<List<ExchangeRateRow>> watchExchangeRates() =>
+      _db.exchangeRatesDao.watchAll();
+
+  Future<List<ExchangeRateRow>> getExchangeRates() =>
+      _db.exchangeRatesDao.getAll();
+
+  Future<void> saveRate({
+    String? id,
+    required String fromCode,
+    required String toCode,
+    required double rate,
+  }) {
+    return _db.exchangeRatesDao.upsert(ExchangeRatesCompanion.insert(
+      id: id ?? _uuid.v4(),
+      fromCode: fromCode,
+      toCode: toCode,
+      rate: rate,
+      updatedAt: DateTime.now(),
+    ));
+  }
+
+  Future<void> deleteRate(String id) => _db.exchangeRatesDao.deleteById(id);
 
   // ---- Reglas recurrentes ----
 

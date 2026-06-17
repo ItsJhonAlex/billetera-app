@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'budgets_screen.dart';
-import 'categories_screen.dart';
-
 /// Ajustes de la app: gestión de categorías, datos de la app e información
 /// "Acerca de" (autor y código fuente). Más adelante: presupuestos, backup,
 /// moneda configurable.
@@ -67,31 +64,6 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(
         children: [
-          const _SectionHeader('General'),
-          ListTile(
-            leading: const Icon(Icons.category),
-            title: const Text('Categorías'),
-            subtitle: const Text('Crear, editar o borrar categorías'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CategoriesScreen()),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.savings),
-            title: const Text('Presupuestos'),
-            subtitle: const Text('Límite mensual por categoría'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const BudgetsScreen()),
-            ),
-          ),
-          const ListTile(
-            leading: Icon(Icons.payments),
-            title: Text('Moneda'),
-            subtitle: Text('CUP — Peso cubano'),
-            trailing: Text('Próximamente'),
-          ),
           const _SectionHeader('Próximamente'),
           const ListTile(
             leading: Icon(Icons.backup_outlined),

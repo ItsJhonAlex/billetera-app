@@ -80,7 +80,8 @@ class _BudgetFormScreenState extends ConsumerState<BudgetFormScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(
+              16, 16, 16, 16 + MediaQuery.of(context).viewPadding.bottom),
           children: [
             DropdownButtonFormField<String>(
               initialValue: _categoryId,

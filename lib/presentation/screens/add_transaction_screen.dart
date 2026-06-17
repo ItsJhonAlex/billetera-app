@@ -6,6 +6,7 @@ import '../../core/material_icon.dart';
 import '../../core/money.dart';
 import '../../data/database/app_database.dart';
 import '../../domain/enums.dart';
+import '../../domain/exchange.dart';
 import '../../domain/transaction_validation.dart';
 import '../providers/providers.dart';
 import '../widgets/amount_field.dart';
@@ -26,12 +27,15 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amount = TextEditingController();
   final _note = TextEditingController();
+  final _fee = TextEditingController();
+  final _received = TextEditingController();
 
   TransactionType _type = TransactionType.gasto;
   String? _accountId;
   String? _categoryId;
   String? _transferToId;
   DateTime _date = DateTime.now();
+  bool _feeIsPercent = false;
 
   bool get _isTransfer => _type == TransactionType.transferencia;
   bool get _isEdit => widget.existing != null;
@@ -48,6 +52,10 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       _categoryId = tx.categoryId;
       _transferToId = tx.transferAccountId;
       _date = tx.date;
+      if (tx.feeMinor != null) _fee.text = Money.toUnits(tx.feeMinor!).toString();
+      if (tx.transferAmountMinor != null) {
+        _received.text = Money.toUnits(tx.transferAmountMinor!).toString();
+      }
     }
   }
 
@@ -55,7 +63,72 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   void dispose() {
     _amount.dispose();
     _note.dispose();
+    _fee.dispose();
+    _received.dispose();
     super.dispose();
+  }
+
+  /// Moneda de una cuenta por id.
+  String _currencyOf(String? accountId) {
+    final acc = ref.read(accountsByIdProvider)[accountId];
+    return acc?.currency ?? ref.read(defaultCurrencyProvider)?.code ?? 'CUP';
+  }
+
+  bool get _isCrossCurrency =>
+      _isTransfer &&
+      _accountId != null &&
+      _transferToId != null &&
+      _currencyOf(_accountId) != _currencyOf(_transferToId);
+
+  /// Comisión en centavos (moneda origen). Si es %, sobre [amountMinor].
+  int? _computeFeeMinor(int amountMinor) {
+    final text = _fee.text.trim();
+    if (text.isEmpty) return null;
+    if (_feeIsPercent) {
+      final pct = double.tryParse(text.replaceAll(',', '.'));
+      if (pct == null) return null;
+      return (amountMinor * pct / 100).round();
+    }
+    return Money.parseExpression(text);
+  }
+
+  /// Convierte el neto (origen) a la moneda destino con la tasa definida.
+  int? _convertedNet(int net) {
+    final from = _currencyOf(_accountId);
+    final to = _currencyOf(_transferToId);
+    if (from == to) return net;
+    final def = ref.read(defaultCurrencyProvider)?.code ?? 'CUP';
+    return convertMinor(net, from, to, ref.read(ratesMapProvider), def);
+  }
+
+  /// Campo de comisión: valor + selector Monto/% .
+  Widget _buildFeeRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: _fee,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Comisión (opcional)',
+              prefixText: _feeIsPercent ? null : r'$ ',
+              suffixText: _feeIsPercent ? '%' : null,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SegmentedButton<bool>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(value: false, label: Text('Monto')),
+            ButtonSegment(value: true, label: Text('%')),
+          ],
+          selected: {_feeIsPercent},
+          onSelectionChanged: (s) => setState(() => _feeIsPercent = s.first),
+        ),
+      ],
+    );
   }
 
   Future<void> _pickDate() async {
@@ -73,12 +146,24 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     final amountMinor = Money.parseExpression(_amount.text);
     if (amountMinor == null) return;
 
+    int? feeMinor;
+    int? receivedMinor;
+    if (_isTransfer) {
+      feeMinor = _computeFeeMinor(amountMinor);
+      final net = amountMinor - (feeMinor ?? 0);
+      // Monto recibido: lo que escribió el usuario, o el cálculo por tasa.
+      receivedMinor = Money.parseExpression(_received.text) ??
+          _convertedNet(net);
+    }
+
     final draft = TransactionDraft(
       type: _type,
       amountMinor: amountMinor,
       accountId: _accountId ?? '',
       categoryId: _isTransfer ? null : _categoryId,
       transferAccountId: _isTransfer ? _transferToId : null,
+      transferAmountMinor: _isTransfer ? receivedMinor : null,
+      feeMinor: _isTransfer ? feeMinor : null,
     );
 
     final note = _note.text.trim().isEmpty ? null : _note.text.trim();
@@ -125,7 +210,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(
+                    16, 16, 16, 16 + MediaQuery.of(context).viewPadding.bottom),
                 children: [
                   SegmentedButton<TransactionType>(
                     segments: const [
@@ -172,7 +258,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     onChanged: (v) => setState(() => _accountId = v),
                   ),
                   const SizedBox(height: 16),
-                  if (_isTransfer)
+                  if (_isTransfer) ...[
                     DropdownButtonFormField<String>(
                       initialValue: _transferToId,
                       decoration:
@@ -184,8 +270,19 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                       validator: (v) =>
                           v == null ? 'Selecciona la cuenta destino' : null,
                       onChanged: (v) => setState(() => _transferToId = v),
-                    )
-                  else
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFeeRow(),
+                    const SizedBox(height: 16),
+                    AmountField(
+                      controller: _received,
+                      label: 'Monto recibido en destino',
+                      helperText: _isCrossCurrency
+                          ? 'Vacío = se calcula con la tasa (neto × tasa).'
+                          : 'Vacío = el neto tras la comisión.',
+                      allowEmpty: true,
+                    ),
+                  ] else
                     DropdownButtonFormField<String>(
                       initialValue: _categoryId,
                       decoration:

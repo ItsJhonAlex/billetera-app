@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database/app_database.dart';
 import '../../data/repositories/wallet_repository.dart';
 import '../../domain/balance.dart';
+import '../../domain/exchange.dart';
 
 /// Instancia única de la base de datos, cerrada al desecharse.
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -34,6 +35,14 @@ final recurringRulesProvider = StreamProvider<List<RecurringRuleRow>>((ref) {
   return ref.watch(walletRepositoryProvider).watchRecurringRules();
 });
 
+final currenciesProvider = StreamProvider<List<CurrencyRow>>((ref) {
+  return ref.watch(walletRepositoryProvider).watchCurrencies();
+});
+
+final exchangeRatesProvider = StreamProvider<List<ExchangeRateRow>>((ref) {
+  return ref.watch(walletRepositoryProvider).watchExchangeRates();
+});
+
 // ---- Derivados ----
 
 /// Saldo (en centavos) por id de cuenta. Se recalcula cuando cambian las
@@ -48,6 +57,7 @@ final balancesProvider = Provider<Map<String, int>>((ref) {
             amountMinor: t.amountMinor,
             accountId: t.accountId,
             transferAccountId: t.transferAccountId,
+            transferAmountMinor: t.transferAmountMinor,
           ))
       .toList(growable: false);
 
@@ -61,10 +71,42 @@ final balancesProvider = Provider<Map<String, int>>((ref) {
   };
 });
 
-/// Saldo total de la billetera (suma de todas las cuentas).
-final totalBalanceProvider = Provider<int>((ref) {
-  return computeTotalBalance(ref.watch(balancesProvider));
+/// Mapa code -> moneda.
+final currenciesByCodeProvider = Provider<Map<String, CurrencyRow>>((ref) {
+  final list = ref.watch(currenciesProvider).asData?.value ?? const [];
+  return {for (final c in list) c.code: c};
 });
+
+/// Moneda predeterminada (la marcada; si no hay, la primera). `null` si no hay.
+final defaultCurrencyProvider = Provider<CurrencyRow?>((ref) {
+  final list = ref.watch(currenciesProvider).asData?.value ?? const [];
+  for (final c in list) {
+    if (c.isDefault) return c;
+  }
+  return list.isEmpty ? null : list.first;
+});
+
+/// Mapa de tasas "FROM>TO" -> rate, para los conversores.
+final ratesMapProvider = Provider<Map<String, double>>((ref) {
+  final rates = ref.watch(exchangeRatesProvider).asData?.value ?? const [];
+  return {for (final r in rates) rateKey(r.fromCode, r.toCode): r.rate};
+});
+
+/// Saldo total convertido a la moneda predeterminada, con las monedas sin tasa.
+final totalBalanceProvider = Provider<({int totalMinor, Set<String> missing})>(
+  (ref) {
+    final accounts = ref.watch(accountsProvider).asData?.value ?? const [];
+    final balances = ref.watch(balancesProvider);
+    final def = ref.watch(defaultCurrencyProvider);
+    if (def == null) return (totalMinor: 0, missing: <String>{});
+    final rates = ref.watch(ratesMapProvider);
+    final amounts = accounts.map((a) => (
+          currency: a.currency,
+          minor: balances[a.id] ?? a.initialBalanceMinor,
+        ));
+    return totalInDefault(amounts, rates, def.code);
+  },
+);
 
 /// Mapa id -> cuenta, para resolver nombres en las listas.
 final accountsByIdProvider = Provider<Map<String, AccountRow>>((ref) {

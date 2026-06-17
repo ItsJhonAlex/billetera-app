@@ -8,6 +8,8 @@ class TransactionDraft {
     required this.accountId,
     this.categoryId,
     this.transferAccountId,
+    this.transferAmountMinor,
+    this.feeMinor,
   });
 
   final TransactionType type;
@@ -15,6 +17,12 @@ class TransactionDraft {
   final String accountId;
   final String? categoryId;
   final String? transferAccountId;
+
+  /// Monto acreditado al destino (transferencias). Nulo = igual a [amountMinor].
+  final int? transferAmountMinor;
+
+  /// Comisión en moneda origen (transferencias).
+  final int? feeMinor;
 }
 
 /// Valida un [TransactionDraft]. Devuelve un mensaje de error legible o `null`

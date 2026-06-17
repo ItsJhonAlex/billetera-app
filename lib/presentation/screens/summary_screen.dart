@@ -21,6 +21,8 @@ class SummaryScreen extends ConsumerWidget {
     final slices = ref.watch(expenseByCategoryProvider);
     final bars = ref.watch(evolutionProvider);
     final catsById = ref.watch(categoriesByIdProvider);
+    final symbol = ref.watch(defaultCurrencyProvider)?.symbol ?? r'$';
+    final fees = ref.watch(feesInPeriodProvider);
     final notifier = ref.read(summarySelectionProvider.notifier);
 
     return Scaffold(
@@ -59,16 +61,20 @@ class SummaryScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _TotalsRow(totals: totals),
+          _TotalsRow(totals: totals, symbol: symbol),
+          if (fees > 0) ...[
+            const SizedBox(height: 8),
+            _FeesTile(feeMinor: fees, symbol: symbol),
+          ],
           const SizedBox(height: 24),
           Text('Gasto por categoría',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
-          _CategoryDonut(slices: slices, catsById: catsById),
+          _CategoryDonut(slices: slices, catsById: catsById, symbol: symbol),
           const SizedBox(height: 24),
           Text('Evolución', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
-          _EvolutionChart(bars: bars, period: sel.period),
+          _EvolutionChart(bars: bars, period: sel.period, symbol: symbol),
         ],
       ),
     );
@@ -91,8 +97,9 @@ class SummaryScreen extends ConsumerWidget {
 }
 
 class _TotalsRow extends StatelessWidget {
-  const _TotalsRow({required this.totals});
+  const _TotalsRow({required this.totals, required this.symbol});
   final SummaryTotals totals;
+  final String symbol;
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +110,7 @@ class _TotalsRow extends StatelessWidget {
           child: _TotalCell(
             label: 'Ingresos',
             amountMinor: totals.incomeMinor,
+            symbol: symbol,
             color: Colors.green.shade400,
           ),
         ),
@@ -111,6 +119,7 @@ class _TotalsRow extends StatelessWidget {
           child: _TotalCell(
             label: 'Gastos',
             amountMinor: totals.expenseMinor,
+            symbol: symbol,
             color: Theme.of(context).colorScheme.error,
           ),
         ),
@@ -119,6 +128,7 @@ class _TotalsRow extends StatelessWidget {
           child: _TotalCell(
             label: 'Balance',
             amountMinor: balance,
+            symbol: symbol,
             color: balance < 0
                 ? Theme.of(context).colorScheme.error
                 : BilleteraTheme.stitch,
@@ -133,11 +143,13 @@ class _TotalCell extends StatelessWidget {
   const _TotalCell({
     required this.label,
     required this.amountMinor,
+    required this.symbol,
     required this.color,
   });
 
   final String label;
   final int amountMinor;
+  final String symbol;
   final Color color;
 
   @override
@@ -155,11 +167,42 @@ class _TotalCell extends StatelessWidget {
           Text(label, style: theme.textTheme.labelSmall),
           const SizedBox(height: 4),
           Text(
-            Money.format(amountMinor),
+            Money.format(amountMinor, symbol: symbol),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleSmall
                 ?.copyWith(color: color, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Comisiones perdidas en el periodo.
+class _FeesTile extends StatelessWidget {
+  const _FeesTile({required this.feeMinor, required this.symbol});
+  final int feeMinor;
+  final String symbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.error.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.percent, size: 18, color: theme.colorScheme.error),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('Comisiones perdidas')),
+          Text(
+            Money.format(feeMinor, symbol: symbol),
+            style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.error, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -178,10 +221,15 @@ const _fallbackColors = [
 ];
 
 class _CategoryDonut extends StatelessWidget {
-  const _CategoryDonut({required this.slices, required this.catsById});
+  const _CategoryDonut({
+    required this.slices,
+    required this.catsById,
+    required this.symbol,
+  });
 
   final List<CategorySlice> slices;
   final Map<String, CategoryRow> catsById;
+  final String symbol;
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +292,7 @@ class _CategoryDonut extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(child: Text(nameFor(slices[i]))),
                 Text(
-                  '${Money.format(slices[i].amountMinor)}  ·  '
+                  '${Money.format(slices[i].amountMinor, symbol: symbol)}  ·  '
                   '${(slices[i].amountMinor * 100 / total).round()}%',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -257,10 +305,15 @@ class _CategoryDonut extends StatelessWidget {
 }
 
 class _EvolutionChart extends StatelessWidget {
-  const _EvolutionChart({required this.bars, required this.period});
+  const _EvolutionChart({
+    required this.bars,
+    required this.period,
+    required this.symbol,
+  });
 
   final List<EvolutionBar> bars;
   final SummaryPeriod period;
+  final String symbol;
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +336,7 @@ class _EvolutionChart extends StatelessWidget {
             touchTooltipData: BarTouchTooltipData(
               getTooltipItem: (group, groupIndex, rod, rodIndex) =>
                   BarTooltipItem(
-                Money.format((rod.toY * 100).round()),
+                Money.format((rod.toY * 100).round(), symbol: symbol),
                 const TextStyle(color: Colors.white, fontSize: 11),
               ),
             ),

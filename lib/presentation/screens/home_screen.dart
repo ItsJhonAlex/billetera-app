@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/money.dart';
 import '../../core/theme.dart';
 import '../providers/providers.dart';
+import '../widgets/app_drawer.dart';
 import '../widgets/transaction_tile.dart';
 import 'account_form_screen.dart';
 import 'summary_screen.dart';
@@ -20,10 +21,13 @@ class HomeScreen extends ConsumerWidget {
     final txns = ref.watch(transactionsProvider).asData?.value ?? const [];
     final accountsById = ref.watch(accountsByIdProvider);
     final categoriesById = ref.watch(categoriesByIdProvider);
+    final currenciesByCode = ref.watch(currenciesByCodeProvider);
+    final defaultSymbol = ref.watch(defaultCurrencyProvider)?.symbol ?? r'$';
 
     final recent = txns.take(8).toList();
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text('Billetera'),
         actions: [
@@ -39,7 +43,11 @@ class HomeScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          _TotalCard(totalMinor: total),
+          _TotalCard(
+            totalMinor: total.totalMinor,
+            symbol: defaultSymbol,
+            missing: total.missing,
+          ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -69,6 +77,7 @@ class HomeScreen extends ConsumerWidget {
                   return _AccountMiniCard(
                     name: a.name,
                     balanceMinor: balances[a.id] ?? a.initialBalanceMinor,
+                    symbol: currenciesByCode[a.currency]?.symbol ?? a.currency,
                   );
                 },
               ),
@@ -94,6 +103,7 @@ class HomeScreen extends ConsumerWidget {
                       tx: tx,
                       accountsById: accountsById,
                       categoriesById: categoriesById,
+                      currenciesByCode: currenciesByCode,
                     ),
                 ],
               ),
@@ -111,9 +121,15 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _TotalCard extends StatelessWidget {
-  const _TotalCard({required this.totalMinor});
+  const _TotalCard({
+    required this.totalMinor,
+    required this.symbol,
+    required this.missing,
+  });
 
   final int totalMinor;
+  final String symbol;
+  final Set<String> missing;
 
   @override
   Widget build(BuildContext context) {
@@ -146,14 +162,19 @@ class _TotalCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            Money.format(totalMinor),
+            Money.format(totalMinor, symbol: symbol),
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: totalMinor < 0 ? BilleteraTheme.expense : null,
                 ),
           ),
-          const SizedBox(height: 4),
-          const Text('CUP', style: TextStyle(color: Color(0xFF8A7E72))),
+          if (missing.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Faltan tasas para: ${missing.join(', ')}',
+              style: const TextStyle(color: Color(0xFFD9A441), fontSize: 12),
+            ),
+          ],
         ],
       ),
     );
@@ -161,10 +182,15 @@ class _TotalCard extends StatelessWidget {
 }
 
 class _AccountMiniCard extends StatelessWidget {
-  const _AccountMiniCard({required this.name, required this.balanceMinor});
+  const _AccountMiniCard({
+    required this.name,
+    required this.balanceMinor,
+    required this.symbol,
+  });
 
   final String name;
   final int balanceMinor;
+  final String symbol;
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +211,7 @@ class _AccountMiniCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w600)),
           Text(
-            Money.format(balanceMinor),
+            Money.format(balanceMinor, symbol: symbol),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,

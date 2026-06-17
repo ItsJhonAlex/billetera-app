@@ -5,6 +5,7 @@ import '../../data/notifications/notification_service.dart';
 import '../../domain/balance.dart';
 import '../../domain/budget.dart';
 import '../../domain/enums.dart';
+import '../../domain/exchange.dart';
 import 'providers.dart';
 
 /// Estado de un presupuesto para la UI: límite y gastado del mes en curso.
@@ -14,11 +15,14 @@ final budgetsProvider = StreamProvider<List<BudgetRow>>((ref) {
   return ref.watch(walletRepositoryProvider).watchBudgets();
 });
 
-/// Saldo base para los presupuestos por % = suma del saldo (al inicio del mes
-/// en curso) de las cuentas marcadas como incluidas.
+/// Saldo base para los presupuestos por % = suma (en la moneda predeterminada)
+/// del saldo al inicio del mes de las cuentas marcadas como incluidas.
 final budgetBaseBalanceProvider = Provider<int>((ref) {
   final accounts = ref.watch(accountsProvider).asData?.value ?? const [];
   final txns = ref.watch(transactionsProvider).asData?.value ?? const [];
+  final rates = ref.watch(ratesMapProvider);
+  final def = ref.watch(defaultCurrencyProvider);
+  if (def == null) return 0;
   final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month, 1);
 
@@ -29,16 +33,18 @@ final budgetBaseBalanceProvider = Provider<int>((ref) {
             amountMinor: t.amountMinor,
             accountId: t.accountId,
             transferAccountId: t.transferAccountId,
+            transferAmountMinor: t.transferAmountMinor,
           ))
       .toList(growable: false);
 
   var base = 0;
   for (final a in accounts.where((a) => a.includeInBudget)) {
-    base += computeAccountBalance(
+    final bal = computeAccountBalance(
       accountId: a.id,
       initialBalanceMinor: a.initialBalanceMinor,
       entries: entriesBefore,
     );
+    base += convertMinor(bal, a.currency, def.code, rates, def.code) ?? 0;
   }
   return base;
 });
@@ -50,10 +56,15 @@ final budgetStatusesProvider = Provider<List<BudgetStatus>>((ref) {
 
   final txns = ref.watch(transactionsProvider).asData?.value ?? const [];
   final base = ref.watch(budgetBaseBalanceProvider);
+  final accountsById = ref.watch(accountsByIdProvider);
+  final rates = ref.watch(ratesMapProvider);
+  final def = ref.watch(defaultCurrencyProvider);
+  final defCode = def?.code ?? 'CUP';
   final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month, 1);
   final nextMonth = DateTime(now.year, now.month + 1, 1);
 
+  // Gasto del mes de una categoría, convertido a la moneda predeterminada.
   int spentFor(String categoryId) {
     var spent = 0;
     for (final t in txns) {
@@ -61,7 +72,8 @@ final budgetStatusesProvider = Provider<List<BudgetStatus>>((ref) {
           t.categoryId == categoryId &&
           !t.date.isBefore(monthStart) &&
           t.date.isBefore(nextMonth)) {
-        spent += t.amountMinor;
+        final code = accountsById[t.accountId]?.currency ?? defCode;
+        spent += convertMinor(t.amountMinor, code, defCode, rates, defCode) ?? 0;
       }
     }
     return spent;

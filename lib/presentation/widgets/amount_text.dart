@@ -11,6 +11,7 @@ class AmountText extends StatelessWidget {
     this.isIncome = true,
     this.isTransfer = false,
     this.showSign = true,
+    this.symbol = r'$',
     this.style,
   });
 
@@ -19,6 +20,9 @@ class AmountText extends StatelessWidget {
   final bool isIncome;
   final bool isTransfer;
   final bool showSign;
+
+  /// Símbolo de la moneda del importe.
+  final String symbol;
   final TextStyle? style;
 
   @override
@@ -28,7 +32,7 @@ class AmountText extends StatelessWidget {
         : (amountMinor < 0 ? BilleteraTheme.expense : null);
 
     final sign = showSign ? (isIncome ? '+' : '−') : '';
-    final text = '$sign${Money.format(amountMinor.abs())}';
+    final text = '$sign${Money.format(amountMinor.abs(), symbol: symbol)}';
 
     return Text(
       text,

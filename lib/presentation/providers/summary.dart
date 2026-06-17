@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/database/app_database.dart';
 import '../../domain/enums.dart';
+import '../../domain/exchange.dart';
 import 'providers.dart';
 
 /// Periodo del resumen. El selector controla toda la pantalla.
@@ -154,18 +155,57 @@ final summaryRangeProvider = Provider<Range>((ref) {
   return rangeFor(sel.period, anchor: DateTime.now(), offset: sel.offset);
 });
 
-final summaryTotalsProvider = Provider<SummaryTotals>((ref) {
+/// Movimientos con su importe ya convertido a la moneda predeterminada (desde
+/// la moneda de su cuenta). Así los agregados del resumen son comparables.
+/// Si falta la tasa, el importe queda en 0 (no contamina los totales).
+final _summaryTxnsProvider = Provider<List<TransactionRow>>((ref) {
   final txns = ref.watch(transactionsProvider).asData?.value ?? const [];
+  final accountsById = ref.watch(accountsByIdProvider);
+  final rates = ref.watch(ratesMapProvider);
+  final def = ref.watch(defaultCurrencyProvider);
+  if (def == null) return txns;
+  return txns.map((t) {
+    final code = accountsById[t.accountId]?.currency ?? def.code;
+    if (code == def.code) return t;
+    final converted =
+        convertMinor(t.amountMinor, code, def.code, rates, def.code) ?? 0;
+    return t.copyWith(amountMinor: converted);
+  }).toList(growable: false);
+});
+
+final summaryTotalsProvider = Provider<SummaryTotals>((ref) {
+  final txns = ref.watch(_summaryTxnsProvider);
   return totalsIn(txns, ref.watch(summaryRangeProvider));
 });
 
 final expenseByCategoryProvider = Provider<List<CategorySlice>>((ref) {
-  final txns = ref.watch(transactionsProvider).asData?.value ?? const [];
+  final txns = ref.watch(_summaryTxnsProvider);
   return expenseByCategory(txns, ref.watch(summaryRangeProvider));
 });
 
 final evolutionProvider = Provider<List<EvolutionBar>>((ref) {
-  final txns = ref.watch(transactionsProvider).asData?.value ?? const [];
+  final txns = ref.watch(_summaryTxnsProvider);
   final sel = ref.watch(summarySelectionProvider);
   return evolution(txns, sel.period, ref.watch(summaryRangeProvider));
+});
+
+/// Comisiones de transferencia del periodo, convertidas a la predeterminada.
+final feesInPeriodProvider = Provider<int>((ref) {
+  final txns = ref.watch(transactionsProvider).asData?.value ?? const [];
+  final accountsById = ref.watch(accountsByIdProvider);
+  final rates = ref.watch(ratesMapProvider);
+  final def = ref.watch(defaultCurrencyProvider);
+  final range = ref.watch(summaryRangeProvider);
+  if (def == null) return 0;
+  var total = 0;
+  for (final t in txns) {
+    final fee = t.feeMinor;
+    if (fee == null || fee == 0) continue;
+    if (t.date.isBefore(range.start) || !t.date.isBefore(range.endExclusive)) {
+      continue;
+    }
+    final code = accountsById[t.accountId]?.currency ?? def.code;
+    total += convertMinor(fee, code, def.code, rates, def.code) ?? 0;
+  }
+  return total;
 });

@@ -6,9 +6,9 @@ import '../providers/budget_providers.dart';
 import '../providers/providers.dart';
 import 'accounts_screen.dart';
 import 'add_transaction_screen.dart';
+import 'budgets_screen.dart';
 import 'home_screen.dart';
 import 'recurring_screen.dart';
-import 'settings_screen.dart';
 import 'transactions_screen.dart';
 
 /// Contenedor principal con barra de navegación inferior.
@@ -31,7 +31,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     TransactionsScreen(),
     AccountsScreen(),
     RecurringScreen(),
-    SettingsScreen(),
+    BudgetsScreen(),
   ];
 
   @override
@@ -110,8 +110,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
             label: 'Recurrentes',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Ajustes',
+            icon: Icon(Icons.savings),
+            label: 'Presupuestos',
           ),
         ],
       ),

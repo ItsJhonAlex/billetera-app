@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/database/app_database.dart';
 import '../../domain/enums.dart';
+import '../../domain/exchange.dart';
 import 'providers.dart';
 
 /// Criterios de filtrado del historial de movimientos.
@@ -122,16 +123,28 @@ final filteredTransactionsProvider = Provider<List<TransactionRow>>((ref) {
 /// Las transferencias no cuentan como ingreso ni gasto.
 typedef TransactionsSummary = ({int incomeMinor, int expenseMinor});
 
+/// Resumen del conjunto filtrado, convertido a la moneda predeterminada.
+/// Cada movimiento se convierte desde la moneda de su cuenta.
 final filteredSummaryProvider = Provider<TransactionsSummary>((ref) {
   final txns = ref.watch(filteredTransactionsProvider);
+  final accountsById = ref.watch(accountsByIdProvider);
+  final rates = ref.watch(ratesMapProvider);
+  final def = ref.watch(defaultCurrencyProvider);
+  if (def == null) return (incomeMinor: 0, expenseMinor: 0);
+
+  int toDefault(TransactionRow t) {
+    final code = accountsById[t.accountId]?.currency ?? def.code;
+    return convertMinor(t.amountMinor, code, def.code, rates, def.code) ?? 0;
+  }
+
   var income = 0;
   var expense = 0;
   for (final t in txns) {
     switch (t.type) {
       case TransactionType.ingreso:
-        income += t.amountMinor;
+        income += toDefault(t);
       case TransactionType.gasto:
-        expense += t.amountMinor;
+        expense += toDefault(t);
       case TransactionType.transferencia:
         break;
     }

@@ -146,6 +146,42 @@ void main() {
     expect(balance, 6000);
   });
 
+  test('transferencia entre monedas usa el monto recibido en destino', () async {
+    final usd = await repo.createAccount(
+        name: 'USD', type: AccountType.efectivo, initialBalanceMinor: 10000);
+    final cup = await repo.createAccount(
+        name: 'CUP', type: AccountType.efectivo);
+
+    // Salen 100.00 USD; comisión 5.00 USD; llegan 64600.00 CUP.
+    await repo.createTransaction(
+      draft: TransactionDraft(
+        type: TransactionType.transferencia,
+        amountMinor: 10000,
+        accountId: usd,
+        transferAccountId: cup,
+        transferAmountMinor: 6460000,
+        feeMinor: 500,
+      ),
+      date: DateTime(2026, 1, 1),
+    );
+
+    final txns = await db.transactionsDao.watchAll().first;
+    final entries = txns.map((t) => BalanceEntry(
+          type: t.type,
+          amountMinor: t.amountMinor,
+          accountId: t.accountId,
+          transferAccountId: t.transferAccountId,
+          transferAmountMinor: t.transferAmountMinor,
+        ));
+    final saldoUsd = computeAccountBalance(
+        accountId: usd, initialBalanceMinor: 10000, entries: entries);
+    final saldoCup = computeAccountBalance(
+        accountId: cup, initialBalanceMinor: 0, entries: entries);
+
+    expect(saldoUsd, 0); // salieron los 100 USD completos
+    expect(saldoCup, 6460000); // llegaron 64600 CUP
+  });
+
   test('rechaza un movimiento inválido', () async {
     final a = await repo.createAccount(
         name: 'Caja', type: AccountType.efectivo);

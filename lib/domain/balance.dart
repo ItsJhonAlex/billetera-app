@@ -10,11 +10,13 @@ class BalanceEntry {
     required this.amountMinor,
     required this.accountId,
     this.transferAccountId,
+    this.transferAmountMinor,
   });
 
   final TransactionType type;
 
-  /// Importe en centavos, siempre positivo.
+  /// Importe en centavos, siempre positivo. En transferencias, lo que SALE del
+  /// origen (en la moneda del origen).
   final int amountMinor;
 
   /// Cuenta origen (o la única cuenta en gasto/ingreso).
@@ -22,6 +24,10 @@ class BalanceEntry {
 
   /// Cuenta destino, solo en transferencias.
   final String? transferAccountId;
+
+  /// Lo que ENTRA al destino (en la moneda del destino). Si es nulo, se usa
+  /// [amountMinor] (transferencia de la misma moneda y sin comisión).
+  final int? transferAmountMinor;
 }
 
 /// Calcula el saldo (en centavos) de una cuenta a partir de su saldo inicial y
@@ -44,7 +50,9 @@ int computeAccountBalance({
         if (e.accountId == accountId) balance -= e.amountMinor;
       case TransactionType.transferencia:
         if (e.accountId == accountId) balance -= e.amountMinor;
-        if (e.transferAccountId == accountId) balance += e.amountMinor;
+        if (e.transferAccountId == accountId) {
+          balance += e.transferAmountMinor ?? e.amountMinor;
+        }
     }
   }
   return balance;

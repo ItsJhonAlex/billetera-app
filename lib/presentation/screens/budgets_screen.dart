@@ -17,6 +17,7 @@ class BudgetsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statuses = ref.watch(budgetStatusesProvider);
     final catsById = ref.watch(categoriesByIdProvider);
+    final symbol = ref.watch(defaultCurrencyProvider)?.symbol ?? r'$';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Presupuestos')),
@@ -32,6 +33,7 @@ class BudgetsScreen extends ConsumerWidget {
                 for (final s in statuses)
                   _BudgetCard(
                     status: s,
+                    symbol: symbol,
                     categoryName:
                         catsById[s.budget.categoryId]?.name ?? 'Categoría',
                     iconCodePoint:
@@ -41,9 +43,6 @@ class BudgetsScreen extends ConsumerWidget {
               ],
             ),
     );
-
-    // ignore: dead_code
-    // (gastoCategories se usa al abrir el formulario)
   }
 
   void _openForm(BuildContext context) {
@@ -56,12 +55,14 @@ class BudgetsScreen extends ConsumerWidget {
 class _BudgetCard extends ConsumerWidget {
   const _BudgetCard({
     required this.status,
+    required this.symbol,
     required this.categoryName,
     required this.iconCodePoint,
     required this.colorValue,
   });
 
   final BudgetStatus status;
+  final String symbol;
   final String categoryName;
   final int? iconCodePoint;
   final int? colorValue;
@@ -126,13 +127,14 @@ class _BudgetCard extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Gastaste ${Money.format(spent)} de ${Money.format(limit)}',
+                'Gastaste ${Money.format(spent, symbol: symbol)} de '
+                '${Money.format(limit, symbol: symbol)}',
                 style: theme.textTheme.bodySmall,
               ),
               Text(
                 remaining >= 0
-                    ? 'Te queda ${Money.format(remaining)}'
-                    : 'Te pasaste ${Money.format(-remaining)}',
+                    ? 'Te queda ${Money.format(remaining, symbol: symbol)}'
+                    : 'Te pasaste ${Money.format(-remaining, symbol: symbol)}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: remaining < 0 ? theme.colorScheme.error : null,
                   fontWeight: FontWeight.w600,

@@ -52,6 +52,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final filter = ref.watch(transactionFilterProvider);
     final accountsById = ref.watch(accountsByIdProvider);
     final categoriesById = ref.watch(categoriesByIdProvider);
+    final currenciesByCode = ref.watch(currenciesByCodeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -107,6 +108,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         txns: filtered,
                         accountsById: accountsById,
                         categoriesById: categoriesById,
+                        currenciesByCode: currenciesByCode,
                         onTapTx: (tx) => _showActions(context, tx),
                       ),
           ),
@@ -256,6 +258,7 @@ class _SummaryStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summary = ref.watch(filteredSummaryProvider);
+    final symbol = ref.watch(defaultCurrencyProvider)?.symbol ?? r'$';
     final theme = Theme.of(context);
 
     return Padding(
@@ -267,6 +270,7 @@ class _SummaryStrip extends ConsumerWidget {
               context,
               label: 'Ingresos',
               amountMinor: summary.incomeMinor,
+              symbol: symbol,
               color: Colors.green.shade400,
               icon: Icons.arrow_downward,
             ),
@@ -277,6 +281,7 @@ class _SummaryStrip extends ConsumerWidget {
               context,
               label: 'Gastos',
               amountMinor: summary.expenseMinor,
+              symbol: symbol,
               color: theme.colorScheme.error,
               icon: Icons.arrow_upward,
             ),
@@ -290,6 +295,7 @@ class _SummaryStrip extends ConsumerWidget {
     BuildContext context, {
     required String label,
     required int amountMinor,
+    required String symbol,
     required Color color,
     required IconData icon,
   }) {
@@ -309,7 +315,7 @@ class _SummaryStrip extends ConsumerWidget {
             children: [
               Text(label, style: theme.textTheme.labelSmall),
               Text(
-                Money.format(amountMinor),
+                Money.format(amountMinor, symbol: symbol),
                 style: theme.textTheme.titleSmall
                     ?.copyWith(color: color, fontWeight: FontWeight.bold),
               ),
@@ -327,12 +333,14 @@ class _GroupedList extends StatelessWidget {
     required this.txns,
     required this.accountsById,
     required this.categoriesById,
+    required this.currenciesByCode,
     required this.onTapTx,
   });
 
   final List<TransactionRow> txns;
   final Map<String, AccountRow> accountsById;
   final Map<String, CategoryRow> categoriesById;
+  final Map<String, CurrencyRow> currenciesByCode;
   final void Function(TransactionRow tx) onTapTx;
 
   @override
@@ -350,6 +358,7 @@ class _GroupedList extends StatelessWidget {
         tx: tx,
         accountsById: accountsById,
         categoriesById: categoriesById,
+        currenciesByCode: currenciesByCode,
         onTap: () => onTapTx(tx),
       ));
     }
@@ -432,12 +441,14 @@ class _FilterSheet extends ConsumerWidget {
     final accounts = ref.watch(accountsProvider).asData?.value ?? const [];
     final df = DateFormat('d MMM y', 'es');
 
+    final media = MediaQuery.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         16,
         0,
         16,
-        16 + MediaQuery.of(context).viewInsets.bottom,
+        // Teclado (viewInsets) + barra de navegación del sistema (viewPadding).
+        16 + media.viewInsets.bottom + media.viewPadding.bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

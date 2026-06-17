@@ -34,6 +34,45 @@ class Accounts extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Monedas que maneja el usuario. El [code] (ej. "CUP") es la clave.
+@DataClassName('CurrencyRow')
+class Currencies extends Table {
+  TextColumn get code => text().withLength(min: 2, max: 8)();
+
+  TextColumn get name => text().withLength(min: 1, max: 40)();
+
+  TextColumn get symbol => text().withLength(min: 1, max: 6)();
+
+  /// Decimales para mostrar (por ahora se almacena a 2 decimales).
+  IntColumn get decimalDigits => integer().withDefault(const Constant(2))();
+
+  /// La moneda en la que se muestra el saldo total. Solo una en `true`.
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {code};
+}
+
+/// Tasa de cambio dirigida: `1 [fromCode] = [rate] [toCode]`.
+@DataClassName('ExchangeRateRow')
+class ExchangeRates extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get fromCode => text()();
+
+  TextColumn get toCode => text()();
+
+  RealColumn get rate => real()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Categorías para clasificar gastos e ingresos.
 @DataClassName('CategoryRow')
 class Categories extends Table {
@@ -83,6 +122,13 @@ class Transactions extends Table {
 
   /// Cuenta destino, solo en transferencias.
   TextColumn get transferAccountId => text().nullable().references(Accounts, #id)();
+
+  /// Monto acreditado en la cuenta destino (transferencias entre monedas).
+  /// Si es nulo, se usa [amountMinor] (misma moneda, sin comisión).
+  IntColumn get transferAmountMinor => integer().nullable()();
+
+  /// Comisión de la transferencia, en la moneda de origen (dinero perdido).
+  IntColumn get feeMinor => integer().nullable()();
 
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();

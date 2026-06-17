@@ -15,12 +15,14 @@ class TransactionTile extends StatelessWidget {
     required this.tx,
     required this.accountsById,
     required this.categoriesById,
+    this.currenciesByCode = const {},
     this.onTap,
   });
 
   final TransactionRow tx;
   final Map<String, AccountRow> accountsById;
   final Map<String, CategoryRow> categoriesById;
+  final Map<String, CurrencyRow> currenciesByCode;
   final VoidCallback? onTap;
 
   @override
@@ -67,6 +69,7 @@ class TransactionTile extends StatelessWidget {
         amountMinor: tx.amountMinor,
         isIncome: isIncome,
         isTransfer: isTransfer,
+        symbol: currenciesByCode[account?.currency]?.symbol ?? r'$',
       ),
       onTap: onTap,
     );

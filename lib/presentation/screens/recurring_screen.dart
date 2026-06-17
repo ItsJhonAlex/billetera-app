@@ -21,6 +21,7 @@ class RecurringScreen extends ConsumerWidget {
     final rulesAsync = ref.watch(recurringRulesProvider);
     final accountsById = ref.watch(accountsByIdProvider);
     final categoriesById = ref.watch(categoriesByIdProvider);
+    final currenciesByCode = ref.watch(currenciesByCodeProvider);
     final hasAccounts =
         (ref.watch(accountsProvider).asData?.value ?? const []).isNotEmpty;
 
@@ -70,6 +71,7 @@ class RecurringScreen extends ConsumerWidget {
                     rule: r,
                     accountsById: accountsById,
                     categoriesById: categoriesById,
+                    currenciesByCode: currenciesByCode,
                   ),
               ],
               if (upcoming.isNotEmpty) ...[
@@ -79,6 +81,7 @@ class RecurringScreen extends ConsumerWidget {
                     rule: r,
                     accountsById: accountsById,
                     categoriesById: categoriesById,
+                    currenciesByCode: currenciesByCode,
                   ),
               ],
             ],
@@ -144,11 +147,13 @@ class _RuleCard extends ConsumerWidget {
     required this.rule,
     required this.accountsById,
     required this.categoriesById,
+    required this.currenciesByCode,
   });
 
   final RecurringRuleRow rule;
   final Map<String, AccountRow> accountsById;
   final Map<String, CategoryRow> categoriesById;
+  final Map<String, CurrencyRow> currenciesByCode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -166,8 +171,11 @@ class _RuleCard extends ConsumerWidget {
         ? materialIcon(category.iconCodePoint)
         : rule.txType.icon;
 
+    final symbol = currenciesByCode[accountsById[rule.accountId]?.currency]
+            ?.symbol ??
+        r'$';
     final amountText =
-        '${isManual ? '≈ ' : ''}${Money.format(rule.amountMinor)}';
+        '${isManual ? '≈ ' : ''}${Money.format(rule.amountMinor, symbol: symbol)}';
 
     return Card(
       child: Opacity(

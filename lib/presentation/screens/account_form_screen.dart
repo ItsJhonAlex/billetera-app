@@ -24,6 +24,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   late final TextEditingController _balance;
   late AccountType _type;
   late bool _includeInBudget;
+  String? _currency;
 
   bool get _isEdit => widget.account != null;
 
@@ -37,6 +38,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     );
     _type = a?.type ?? AccountType.efectivo;
     _includeInBudget = a?.includeInBudget ?? true;
+    _currency = a?.currency;
   }
 
   @override
@@ -51,12 +53,17 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     final repo = ref.read(walletRepositoryProvider);
     final initialMinor = Money.parseExpression(_balance.text) ?? 0;
 
+    final currency = _currency ??
+        ref.read(defaultCurrencyProvider)?.code ??
+        'CUP';
+
     if (_isEdit) {
       await repo.updateAccount(widget.account!.copyWith(
         name: _name.text.trim(),
         type: _type,
         initialBalanceMinor: initialMinor,
         includeInBudget: _includeInBudget,
+        currency: currency,
       ));
     } else {
       await repo.createAccount(
@@ -64,6 +71,7 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
         type: _type,
         initialBalanceMinor: initialMinor,
         includeInBudget: _includeInBudget,
+        currency: currency,
       );
     }
     if (mounted) Navigator.of(context).pop();
@@ -76,7 +84,8 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(
+              16, 16, 16, 16 + MediaQuery.of(context).viewPadding.bottom),
           children: [
             TextFormField(
               controller: _name,
@@ -104,6 +113,28 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
               ],
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
+            const SizedBox(height: 16),
+            Builder(builder: (context) {
+              final currencies =
+                  ref.watch(currenciesProvider).asData?.value ?? const [];
+              final defCode = ref.watch(defaultCurrencyProvider)?.code;
+              final selected = _currency ?? defCode;
+              return DropdownButtonFormField<String>(
+                initialValue: selected,
+                decoration: const InputDecoration(labelText: 'Moneda'),
+                items: [
+                  for (final c in currencies)
+                    DropdownMenuItem(
+                      value: c.code,
+                      child: Text('${c.code} — ${c.name}'),
+                    ),
+                ],
+                onChanged: _isEdit
+                    ? null // no cambiar la moneda de una cuenta con movimientos
+                    : (v) => setState(() => _currency = v),
+                disabledHint: selected == null ? null : Text(selected),
+              );
+            }),
             const SizedBox(height: 16),
             AmountField(
               controller: _balance,
