@@ -34,6 +34,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   String? _accountId;
   String? _categoryId;
   String? _transferToId;
+  String? _currencyFilter; // moneda elegida en gasto/ingreso (filtra cuentas)
   DateTime _date = DateTime.now();
   bool _feeIsPercent = false;
 
@@ -141,10 +142,39 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  /// Saldo disponible de una cuenta para validar. Al editar, devuelve el efecto
+  /// del movimiento original sobre esa cuenta para no dar falsos negativos.
+  int _availableBalance(String accountId) {
+    var available = ref.read(balancesProvider)[accountId] ?? 0;
+    final ex = widget.existing;
+    if (ex != null &&
+        ex.accountId == accountId &&
+        (ex.type == TransactionType.gasto ||
+            ex.type == TransactionType.transferencia)) {
+      available += ex.amountMinor; // lo que ya había restado este movimiento
+    }
+    return available;
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final amountMinor = Money.parseExpression(_amount.text);
     if (amountMinor == null) return;
+
+    // Saldo insuficiente: gasto o salida de transferencia no pueden superar el
+    // saldo disponible de la cuenta de origen.
+    if ((_type == TransactionType.gasto || _isTransfer) &&
+        _accountId != null &&
+        amountMinor > _availableBalance(_accountId!)) {
+      _showError('Saldo insuficiente en la cuenta seleccionada.');
+      return;
+    }
 
     int? feeMinor;
     int? receivedMinor;
@@ -195,12 +225,39 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   Widget build(BuildContext context) {
     final accounts = ref.watch(accountsProvider).asData?.value ?? const [];
     final categories = ref.watch(categoriesProvider).asData?.value ?? const [];
+    final balances = ref.watch(balancesProvider);
+    final currenciesByCode = ref.watch(currenciesByCodeProvider);
 
     // Categorías filtradas por el tipo de movimiento.
     final kind =
         _type == TransactionType.ingreso ? CategoryKind.ingreso : CategoryKind.gasto;
     final visibleCategories =
         categories.where((c) => c.kind == kind).toList();
+
+    // Monedas que tienen al menos una cuenta (para el filtro de gasto/ingreso).
+    final usedCurrencies =
+        accounts.map((a) => a.currency).toSet().toList()..sort();
+    // Moneda efectiva del filtro: la elegida, o la del movimiento editado, o la
+    // predeterminada, o la primera disponible.
+    final effectiveCurrency = _currencyFilter ??
+        (_isEdit ? ref.read(accountsByIdProvider)[_accountId]?.currency : null) ??
+        ref.watch(defaultCurrencyProvider)?.code ??
+        (usedCurrencies.isNotEmpty ? usedCurrencies.first : null);
+
+    // Etiqueta de una cuenta con su saldo en su propia moneda.
+    String accountLabel(AccountRow a) {
+      final sym = currenciesByCode[a.currency]?.symbol ?? a.currency;
+      final bal = balances[a.id] ?? a.initialBalanceMinor;
+      return '${a.name} · ${Money.format(bal, symbol: sym)}';
+    }
+
+    // Cuentas mostradas para origen: en gasto/ingreso, solo las de la moneda
+    // elegida; en transferencia, todas.
+    final originAccounts = _isTransfer
+        ? accounts
+        : accounts.where((a) => a.currency == effectiveCurrency).toList();
+    final originValue =
+        originAccounts.any((a) => a.id == _accountId) ? _accountId : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -245,14 +302,38 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     requirePositive: true,
                   ),
                   const SizedBox(height: 16),
+                  if (!_isTransfer) ...[
+                    DropdownButtonFormField<String>(
+                      initialValue: effectiveCurrency,
+                      decoration: const InputDecoration(labelText: 'Moneda'),
+                      items: [
+                        for (final code in usedCurrencies)
+                          DropdownMenuItem(
+                            value: code,
+                            child: Text(
+                                '$code — ${currenciesByCode[code]?.name ?? code}'),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() {
+                        _currencyFilter = v;
+                        _accountId = null; // la cuenta anterior puede no aplicar
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   DropdownButtonFormField<String>(
-                    initialValue: _accountId,
+                    initialValue: originValue,
+                    isExpanded: true,
                     decoration: InputDecoration(
                       labelText: _isTransfer ? 'Cuenta origen' : 'Cuenta',
                     ),
                     items: [
-                      for (final a in accounts)
-                        DropdownMenuItem(value: a.id, child: Text(a.name)),
+                      for (final a in originAccounts)
+                        DropdownMenuItem(
+                          value: a.id,
+                          child: Text(accountLabel(a),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
                     ],
                     validator: (v) => v == null ? 'Selecciona una cuenta' : null,
                     onChanged: (v) => setState(() => _accountId = v),
@@ -261,11 +342,16 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                   if (_isTransfer) ...[
                     DropdownButtonFormField<String>(
                       initialValue: _transferToId,
+                      isExpanded: true,
                       decoration:
                           const InputDecoration(labelText: 'Cuenta destino'),
                       items: [
                         for (final a in accounts.where((a) => a.id != _accountId))
-                          DropdownMenuItem(value: a.id, child: Text(a.name)),
+                          DropdownMenuItem(
+                            value: a.id,
+                            child: Text(accountLabel(a),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
                       ],
                       validator: (v) =>
                           v == null ? 'Selecciona la cuenta destino' : null,

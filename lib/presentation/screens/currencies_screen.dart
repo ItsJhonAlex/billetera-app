@@ -106,11 +106,21 @@ class CurrenciesScreen extends ConsumerWidget {
       case 'edit':
         await _editCurrency(context, repo, existing: c);
       case 'delete':
+        final accounts = ref.read(accountsProvider).asData?.value ?? const [];
+        final inUse = accounts.where((a) => a.currency == c.code).length;
+        if (inUse > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'No se puede borrar ${c.code}: la usan $inUse cuenta(s).'),
+            ),
+          );
+          return;
+        }
         final ok = await confirmDialog(
           context,
           title: '¿Borrar ${c.code}?',
-          message: 'Se quita del catálogo. Las cuentas que la usan no se tocan, '
-              'pero podrían quedarse sin tasa.',
+          message: 'Se quita del catálogo y sus tasas asociadas dejan de aplicar.',
           confirmLabel: 'Borrar',
         );
         if (ok) await repo.deleteCurrency(c.code);

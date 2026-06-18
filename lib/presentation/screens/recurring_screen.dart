@@ -263,7 +263,20 @@ class _RuleCard extends ConsumerWidget {
       context: context,
       builder: (_) => _PayDialog(rule: rule),
     );
-    if (result == null) return;
+    if (result == null || !context.mounted) return;
+
+    // Un gasto recurrente no puede superar el saldo de su cuenta.
+    if (rule.txType == TransactionType.gasto) {
+      final balance = ref.read(balancesProvider)[rule.accountId] ?? 0;
+      if (result.amount > balance) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Saldo insuficiente en la cuenta de la regla.')),
+        );
+        return;
+      }
+    }
+
     await ref.read(walletRepositoryProvider).payRecurring(
           ruleId: rule.id,
           amountMinor: result.amount,

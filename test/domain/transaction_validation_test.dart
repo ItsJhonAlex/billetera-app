@@ -61,5 +61,27 @@ void main() {
       ));
       expect(err, isNull);
     });
+
+    test('rechaza comisión mayor o igual al monto', () {
+      final err = validateTransaction(const TransactionDraft(
+        type: TransactionType.transferencia,
+        amountMinor: 100,
+        accountId: 'a1',
+        transferAccountId: 'a2',
+        feeMinor: 100,
+      ));
+      expect(err, contains('comisión'));
+    });
+
+    test('rechaza monto recibido cero', () {
+      final err = validateTransaction(const TransactionDraft(
+        type: TransactionType.transferencia,
+        amountMinor: 100,
+        accountId: 'a1',
+        transferAccountId: 'a2',
+        transferAmountMinor: 0,
+      ));
+      expect(err, contains('recibido'));
+    });
   });
 }

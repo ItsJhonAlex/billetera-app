@@ -48,6 +48,12 @@ String? validateTransaction(TransactionDraft d) {
       if (d.transferAccountId == d.accountId) {
         return 'La cuenta de origen y destino no pueden ser la misma.';
       }
+      if (d.feeMinor != null && d.feeMinor! >= d.amountMinor) {
+        return 'La comisión no puede ser mayor o igual al monto.';
+      }
+      if (d.transferAmountMinor != null && d.transferAmountMinor! <= 0) {
+        return 'El monto recibido debe ser mayor que cero.';
+      }
   }
   return null;
 }

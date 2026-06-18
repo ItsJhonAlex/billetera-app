@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/backup/backup_service.dart';
 import '../../data/database/app_database.dart';
 import '../../data/repositories/wallet_repository.dart';
 import '../../domain/balance.dart';
@@ -15,6 +16,11 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 /// Repositorio: única API de datos para la UI.
 final walletRepositoryProvider = Provider<WalletRepository>((ref) {
   return WalletRepository(ref.watch(databaseProvider));
+});
+
+/// Servicio de copia de seguridad (exportar/importar JSON).
+final backupServiceProvider = Provider<BackupService>((ref) {
+  return BackupService(ref.watch(databaseProvider));
 });
 
 // ---- Streams de lectura ----

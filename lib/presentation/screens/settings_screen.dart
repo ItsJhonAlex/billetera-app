@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'backup_screen.dart';
+
 /// Ajustes de la app: gestión de categorías, datos de la app e información
 /// "Acerca de" (autor y código fuente). Más adelante: presupuestos, backup,
 /// moneda configurable.
@@ -64,13 +66,15 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(
         children: [
-          const _SectionHeader('Próximamente'),
-          const ListTile(
-            leading: Icon(Icons.backup_outlined),
-            title: Text('Copia de seguridad'),
-            subtitle: Text('Exportar e importar tus datos'),
-            trailing: Icon(Icons.lock_clock),
-            enabled: false,
+          const _SectionHeader('Datos'),
+          ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('Copia de seguridad'),
+            subtitle: const Text('Exportar e importar tus datos'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BackupScreen()),
+            ),
           ),
           const _SectionHeader('Acerca de'),
           ListTile(
