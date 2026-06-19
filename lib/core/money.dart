@@ -30,6 +30,17 @@ class Money {
     return formatter.format(toUnits(minor));
   }
 
+  /// Formatea agrupando miles, SIN símbolo de moneda (ej. 63745000 -> "637.450").
+  /// Muestra 2 decimales solo si el importe tiene centavos. El signo se maneja
+  /// aparte en la UI cuando hace falta.
+  static String grouped(int minor, {String locale = 'es'}) {
+    final hasCents = minor % minorPerUnit != 0;
+    final f = NumberFormat.decimalPattern(locale)
+      ..minimumFractionDigits = hasCents ? 2 : 0
+      ..maximumFractionDigits = 2;
+    return f.format(toUnits(minor));
+  }
+
   /// Parsea lo que el usuario escribe (ej. "15,50" o "15.50") a centavos.
   /// Devuelve `null` si el texto no es un número válido.
   static int? parse(String input) {

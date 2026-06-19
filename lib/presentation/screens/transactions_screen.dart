@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/money.dart';
+import '../../core/theme.dart';
 import '../../data/database/app_database.dart';
 import '../../domain/enums.dart';
 import '../labels.dart';
 import '../providers/providers.dart';
 import '../providers/transaction_filter.dart';
 import '../widgets/confirm_dialog.dart';
-import '../widgets/transaction_tile.dart';
+import '../widgets/tx_row.dart';
 import 'add_transaction_screen.dart';
 
 /// Historial de movimientos con búsqueda, filtros y resumen del periodo.
@@ -52,7 +53,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final filter = ref.watch(transactionFilterProvider);
     final accountsById = ref.watch(accountsByIdProvider);
     final categoriesById = ref.watch(categoriesByIdProvider);
-    final currenciesByCode = ref.watch(currenciesByCodeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -108,7 +108,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         txns: filtered,
                         accountsById: accountsById,
                         categoriesById: categoriesById,
-                        currenciesByCode: currenciesByCode,
                         onTapTx: (tx) => _showActions(context, tx),
                       ),
           ),
@@ -230,7 +229,7 @@ class _ActiveFilterChips extends ConsumerWidget {
               onDeleted: () => notifier.setDateRange(null),
             ),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: ActionChip(
               label: const Text('Limpiar'),
               avatar: const Icon(Icons.clear_all, size: 18),
@@ -244,9 +243,31 @@ class _ActiveFilterChips extends ConsumerWidget {
 
   Widget _chip(BuildContext context,
       {required String label, required VoidCallback onDeleted}) {
+    final t = context.tokens;
     return Padding(
-      padding: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
-      child: InputChip(label: Text(label), onDeleted: onDeleted),
+      padding: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+      child: GestureDetector(
+        onTap: onDeleted,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 7, 10, 7),
+          decoration: BoxDecoration(
+            color: t.gold.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: t.gold.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      color: t.goldSoft,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(width: 6),
+              Icon(Icons.close, size: 15, color: t.goldSoft),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -258,32 +279,29 @@ class _SummaryStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summary = ref.watch(filteredSummaryProvider);
-    final symbol = ref.watch(defaultCurrencyProvider)?.symbol ?? r'$';
-    final theme = Theme.of(context);
+    final t = context.tokens;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
       child: Row(
         children: [
           Expanded(
-            child: _summaryCell(
-              context,
+            child: _cell(
+              t,
               label: 'Ingresos',
-              amountMinor: summary.incomeMinor,
-              symbol: symbol,
-              color: Colors.green.shade400,
-              icon: Icons.arrow_downward,
+              text: '+${Money.grouped(summary.incomeMinor)}',
+              color: t.income,
+              icon: Icons.south_west,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
-            child: _summaryCell(
-              context,
+            child: _cell(
+              t,
               label: 'Gastos',
-              amountMinor: summary.expenseMinor,
-              symbol: symbol,
-              color: theme.colorScheme.error,
-              icon: Icons.arrow_upward,
+              text: '−${Money.grouped(summary.expenseMinor)}',
+              color: t.expense,
+              icon: Icons.north_east,
             ),
           ),
         ],
@@ -291,36 +309,50 @@ class _SummaryStrip extends ConsumerWidget {
     );
   }
 
-  Widget _summaryCell(
-    BuildContext context, {
+  Widget _cell(
+    BilleteraTokens t, {
     required String label,
-    required int amountMinor,
-    required String symbol,
+    required String text,
     required Color color,
     required IconData icon,
   }) {
-    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.12),
+            color.withValues(alpha: 0.04),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(label, style: theme.textTheme.labelSmall),
-              Text(
-                Money.format(amountMinor, symbol: symbol),
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(color: color, fontWeight: FontWeight.bold),
-              ),
+              Icon(icon, color: color, size: 15),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
+          const SizedBox(height: 5),
+          Text(text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontFamily: BilleteraTheme.numberFont,
+                  color: color,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -333,48 +365,65 @@ class _GroupedList extends StatelessWidget {
     required this.txns,
     required this.accountsById,
     required this.categoriesById,
-    required this.currenciesByCode,
     required this.onTapTx,
   });
 
   final List<TransactionRow> txns;
   final Map<String, AccountRow> accountsById;
   final Map<String, CategoryRow> categoriesById;
-  final Map<String, CurrencyRow> currenciesByCode;
   final void Function(TransactionRow tx) onTapTx;
 
   @override
   Widget build(BuildContext context) {
-    // Construye una lista plana intercalando encabezados de día.
-    final items = <Widget>[];
-    DateTime? lastDay;
+    final t = context.tokens;
+    // Agrupa por día conservando el orden (descendente).
+    final groups = <DateTime, List<TransactionRow>>{};
     for (final tx in txns) {
       final day = DateTime(tx.date.year, tx.date.month, tx.date.day);
-      if (lastDay == null || day != lastDay) {
-        items.add(_DayHeader(day: tx.date));
-        lastDay = day;
-      }
-      items.add(TransactionTile(
-        tx: tx,
-        accountsById: accountsById,
-        categoriesById: categoriesById,
-        currenciesByCode: currenciesByCode,
-        onTap: () => onTapTx(tx),
-      ));
+      (groups[day] ??= []).add(tx);
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 96),
-      itemCount: items.length,
-      itemBuilder: (_, i) => items[i],
+    return ListView(
+      padding: const EdgeInsets.only(top: 4, bottom: 110),
+      children: [
+        for (final entry in groups.entries) ...[
+          _DayHeader(day: entry.key, count: entry.value.length),
+          Container(
+            margin: const EdgeInsets.fromLTRB(18, 0, 18, 14),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: t.surfaceGradient,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: t.bd1),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < entry.value.length; i++)
+                  TxRow(
+                    tx: entry.value[i],
+                    accountsById: accountsById,
+                    categoriesById: categoriesById,
+                    showDivider: i != entry.value.length - 1,
+                    onTap: () => onTapTx(entry.value[i]),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
 
 class _DayHeader extends StatelessWidget {
-  const _DayHeader({required this.day});
+  const _DayHeader({required this.day, required this.count});
 
   final DateTime day;
+  final int count;
 
   String _label() {
     final now = DateTime.now();
@@ -389,18 +438,58 @@ class _DayHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = context.tokens;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        _label(),
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.bold,
-        ),
+      padding: const EdgeInsets.fromLTRB(22, 6, 22, 8),
+      child: Row(
+        children: [
+          Text(
+            _label().toUpperCase(),
+            style: TextStyle(
+                color: t.gold,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: CustomPaint(
+              size: const Size(double.infinity, 1.5),
+              painter: _DashedLinePainter(t.bd2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text('$count mov.',
+              style: TextStyle(
+                  fontFamily: BilleteraTheme.numberFont,
+                  color: t.txm,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  _DashedLinePainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5;
+    const dash = 4.0, gap = 4.0;
+    var x = 0.0;
+    while (x < size.width) {
+      canvas.drawLine(Offset(x, 0), Offset(x + dash, 0), paint);
+      x += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedLinePainter old) => old.color != color;
 }
 
 class _EmptyState extends StatelessWidget {
@@ -412,17 +501,29 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = context.tokens;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(30),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: theme.colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            if (action != null) ...[const SizedBox(height: 8), action!],
+            Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [t.surf2A, t.surfB]),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: t.bd3, width: 1.5),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 42, color: t.txf),
+            ),
+            const SizedBox(height: 20),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: t.tx2, height: 1.4)),
+            if (action != null) ...[const SizedBox(height: 12), action!],
           ],
         ),
       ),

@@ -4,12 +4,15 @@ import 'package:intl/intl.dart';
 
 import '../../core/material_icon.dart';
 import '../../core/money.dart';
+import '../../core/theme.dart';
 import '../../data/database/app_database.dart';
 import '../../domain/enums.dart';
 import '../labels.dart';
 import '../providers/providers.dart';
 import '../widgets/amount_field.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/dashed_button.dart';
+import '../widgets/screen_header.dart';
 import 'recurring_form_screen.dart';
 
 /// Lista de reglas recurrentes, divididas en vencidas y próximas.
@@ -25,32 +28,37 @@ class RecurringScreen extends ConsumerWidget {
     final hasAccounts =
         (ref.watch(accountsProvider).asData?.value ?? const []).isNotEmpty;
 
+    final t = context.tokens;
     return Scaffold(
-      appBar: AppBar(title: const Text('Recurrentes')),
-      floatingActionButton: hasAccounts
-          ? FloatingActionButton(
-              onPressed: () => _openForm(context),
-              child: const Icon(Icons.add),
-            )
-          : null,
       body: rulesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (rules) {
+          const header = ScreenHeader(
+            title: 'Recurrentes',
+            subtitle: 'Suscripciones, facturas y salario',
+          );
           if (!hasAccounts) {
-            return const _Empty(
-              icon: Icons.event_repeat,
-              message:
-                  'Primero crea una cuenta para programar pagos recurrentes.',
-            );
+            return ListView(children: [
+              header,
+              const _Empty(
+                icon: Icons.event_repeat,
+                message:
+                    'Primero crea una cuenta para programar pagos recurrentes.',
+              ),
+            ]);
           }
           if (rules.isEmpty) {
-            return const _Empty(
-              icon: Icons.event_repeat,
-              message:
-                  'Sin pagos recurrentes.\nPulsa "+" para añadir suscripciones, '
-                  'facturas o tu salario.',
-            );
+            return ListView(children: [
+              header,
+              const _Empty(
+                icon: Icons.task_alt,
+                title: 'Todo al día',
+                message:
+                    'No tienes pagos pendientes. Programa una suscripción o '
+                    'factura para no olvidarla.',
+              ),
+            ]);
           }
 
           final today = _dateOnly(DateTime.now());
@@ -62,10 +70,14 @@ class RecurringScreen extends ConsumerWidget {
               .toList();
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+            padding: const EdgeInsets.only(bottom: 110),
             children: [
+              header,
               if (overdue.isNotEmpty) ...[
-                const _Header('Vencidos', color: Colors.redAccent),
+                _Header('Vencidos',
+                    icon: Icons.warning_amber,
+                    color: t.expense,
+                    count: overdue.length),
                 for (final r in overdue)
                   _RuleCard(
                     rule: r,
@@ -75,7 +87,8 @@ class RecurringScreen extends ConsumerWidget {
                   ),
               ],
               if (upcoming.isNotEmpty) ...[
-                const _Header('Próximos'),
+                _Header('Próximos',
+                    icon: Icons.schedule, count: upcoming.length),
                 for (final r in upcoming)
                   _RuleCard(
                     rule: r,
@@ -84,6 +97,13 @@ class RecurringScreen extends ConsumerWidget {
                     currenciesByCode: currenciesByCode,
                   ),
               ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
+                child: DashedButton(
+                  label: 'Nueva recurrente',
+                  onTap: () => _openForm(context),
+                ),
+              ),
             ],
           );
         },
@@ -121,22 +141,33 @@ String scheduleLabel(RecurringRuleRow r) {
 }
 
 class _Header extends StatelessWidget {
-  const _Header(this.title, {this.color});
+  const _Header(this.title, {required this.icon, this.color, required this.count});
   final String title;
+  final IconData icon;
   final Color? color;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = context.tokens;
+    final c = color ?? t.gold;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
-      child: Text(
-        title.toUpperCase(),
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: color ?? theme.colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.6,
-        ),
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 17, color: c),
+          const SizedBox(width: 9),
+          Text(title.toUpperCase(),
+              style: TextStyle(
+                  color: c,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3)),
+          const SizedBox(width: 8),
+          Text('$count',
+              style: TextStyle(
+                  color: t.txd, fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
@@ -446,24 +477,40 @@ class _PayDialogState extends State<_PayDialog> {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty({required this.icon, required this.message});
+  const _Empty({required this.icon, required this.message, this.title});
   final IconData icon;
   final String message;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: theme.colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
+    final t = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(30, 30, 30, 10),
+      child: Column(
+        children: [
+          Container(
+            width: 92,
+            height: 92,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [t.surf2A, t.surfB]),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: t.bd3, width: 1.5),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 42, color: t.txf),
+          ),
+          const SizedBox(height: 20),
+          if (title != null) ...[
+            Text(title!,
+                style: TextStyle(
+                    color: t.tx1, fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
           ],
-        ),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: t.txm, fontSize: 13, height: 1.5)),
+        ],
       ),
     );
   }

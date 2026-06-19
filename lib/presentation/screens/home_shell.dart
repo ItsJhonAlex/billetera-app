@@ -88,32 +88,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
               child: const Icon(Icons.add),
             )
           : null,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
+      bottomNavigationBar: _BottomNav(
+        index: _index,
         onTap: (i) => setState(() => _index = i),
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet),
-            label: 'Inicio',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
-            label: 'Movimientos',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.credit_card),
-            label: 'Cuentas',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event_repeat),
-            label: 'Recurrentes',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.savings),
-            label: 'Presupuestos',
-          ),
-        ],
       ),
     );
   }

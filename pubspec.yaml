@@ -51,6 +51,7 @@ dependencies:
   share_plus: ^13.1.0
   path_provider: ^2.1.6
   file_selector: ^1.1.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -101,6 +102,23 @@ flutter:
 
   assets:
     - assets/icon/logo.png
+
+  fonts:
+    - family: Hanken Grotesk
+      fonts:
+        - asset: assets/fonts/HankenGrotesk-Regular.ttf
+    - family: Space Grotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk-Regular.ttf
+    - family: Spectral
+      fonts:
+        - asset: assets/fonts/Spectral-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Spectral-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Spectral-MediumItalic.ttf
+          weight: 500
+          style: italic
 
   # To add assets to your application, add an assets section, like this:
   # assets:
